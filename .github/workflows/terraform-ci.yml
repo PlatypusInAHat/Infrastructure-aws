@@ -1,0 +1,125 @@
+###############################################################################
+# Terraform CI - Pull Request Pipeline
+# Triggers: PR to main that changes infrastructure/ files
+# Actions: Format check → Validate → Plan for each layer
+###############################################################################
+
+name: "Terraform CI"
+
+on:
+    pull_request:
+        branches: [main]
+        paths:
+            - "infrastructure/**"
+            - ".github/workflows/terraform-ci.yml"
+
+permissions:
+    contents: read
+    pull-requests: write
+    id-token: write
+
+env:
+    TF_VERSION: "1.7.0"
+    AWS_REGION: "ap-southeast-1"
+
+jobs:
+    # ---------------------------------------------------------------
+    # Step 1: Format check (runs once for entire codebase)
+    # ---------------------------------------------------------------
+    fmt:
+        name: "Format Check"
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                  terraform_version: ${{ env.TF_VERSION }}
+
+            - name: Terraform Format Check
+              run: terraform fmt -check -recursive infrastructure/
+
+    # ---------------------------------------------------------------
+    # Step 2: Validate & Plan each layer (matrix strategy)
+    # ---------------------------------------------------------------
+    plan:
+        name: "Plan - ${{ matrix.layer }}"
+        runs-on: ubuntu-latest
+        needs: fmt
+        strategy:
+            fail-fast: false
+            matrix:
+                layer:
+                    - 01-network
+                    - 02-security
+                    - 03-compute
+                    - 04-data
+                environment: [dev]
+
+        defaults:
+            run:
+                working-directory: infrastructure/environments/${{ matrix.environment }}/${{ matrix.layer }}
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                  terraform_version: ${{ env.TF_VERSION }}
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Terraform Init
+              run: terraform init
+
+            - name: Terraform Validate
+              run: terraform validate
+
+            - name: Terraform Plan
+              id: plan
+              run: |
+                  terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+                  echo "plan_exitcode=$?" >> $GITHUB_OUTPUT
+              continue-on-error: true
+
+            - name: Post Plan to PR
+              uses: actions/github-script@v7
+              if: github.event_name == 'pull_request'
+              with:
+                  script: |
+                      const fs = require('fs');
+                      const planOutput = fs.readFileSync(
+                        'infrastructure/environments/${{ matrix.environment }}/${{ matrix.layer }}/plan_output.txt',
+                        'utf8'
+                      );
+
+                      // Truncate if too long
+                      const maxLength = 60000;
+                      const truncated = planOutput.length > maxLength
+                        ? planOutput.substring(0, maxLength) + '\n... (truncated)'
+                        : planOutput;
+
+                      const body = `### Terraform Plan: \`${{ matrix.layer }}\` (${{ matrix.environment }})
+                      \`\`\`
+                      ${truncated}
+                      \`\`\`
+                      *Status: ${{ steps.plan.outcome }}*`;
+
+                      github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: body
+                      });
+
+            - name: Plan Status
+              if: steps.plan.outcome == 'failure'
+              run: exit 1

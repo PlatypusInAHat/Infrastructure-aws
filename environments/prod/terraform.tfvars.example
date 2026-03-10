@@ -1,0 +1,41 @@
+###############################################################################
+# Production Environment - terraform.tfvars (TEMPLATE)
+# Copy this to infrastructure/environments/prod/ and adjust as needed
+###############################################################################
+
+region       = "ap-southeast-1"
+project_name = "lab-aws"
+environment  = "prod"
+
+# VPC - High Availability
+vpc_cidr           = "10.1.0.0/16"
+az_count           = 2
+single_nat_gateway = false  # Dual NAT for HA
+
+# EKS - Production-grade
+eks_cluster_version        = "1.29"
+eks_endpoint_public_access = false  # Private API for prod
+eks_node_instance_types    = ["t3.large"]
+eks_node_capacity_type     = "ON_DEMAND"
+eks_node_disk_size         = 50
+eks_node_desired_size      = 3
+eks_node_min_size          = 3
+eks_node_max_size          = 10
+
+# RDS - Full HA
+rds_engine_version          = "15.4"
+rds_instance_class          = "db.t3.medium"
+rds_allocated_storage       = 50
+rds_max_allocated_storage   = 200
+database_name               = "appdb"
+database_username           = "dbadmin"
+database_port               = 5432
+rds_multi_az                = true   # Multi-AZ for HA
+rds_backup_retention_period = 7
+rds_deletion_protection     = true   # Prevent accidental deletion
+rds_skip_final_snapshot     = false  # Always keep final snapshot
+rds_performance_insights    = true
+
+# Application
+app_namespace            = "sample-app"
+app_service_account_name = "app-sa"

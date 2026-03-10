@@ -1,0 +1,24 @@
+.terraform/
+**/.terraform/
+
+*.tfstate
+*.tfstate.*
+
+crash.log
+crash.*.log
+
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+.terraformrc
+terraform.rc
+
+# tfvars often contains secrets; keep *.example versions committed
+*.tfvars
+*.tfvars.json
+
+# CLI plan files
+*.tfplan
+
