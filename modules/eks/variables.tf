@@ -50,7 +50,7 @@ variable "enabled_log_types" {
 variable "node_instance_types" {
   description = "Instance types for the managed node group"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.small"]
 }
 
 variable "node_capacity_type" {
