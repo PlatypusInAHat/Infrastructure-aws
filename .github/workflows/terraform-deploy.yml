@@ -106,10 +106,11 @@ jobs:
   deploy-security:
     name: "Deploy 02-security"
     runs-on: ubuntu-latest
-    needs: deploy-network
+    needs: [deploy-network]
     if: >-
       always() &&
-      (needs.deploy-network.result == 'success' || needs.deploy-network.result == 'skipped') &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
       (github.event.inputs.layer == 'all' ||
        github.event.inputs.layer == '02-security' ||
        github.event_name == 'push')
@@ -157,7 +158,8 @@ jobs:
     needs: [deploy-network, deploy-security]
     if: >-
       always() &&
-      (needs.deploy-security.result == 'success' || needs.deploy-security.result == 'skipped') &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
       (github.event.inputs.layer == 'all' ||
        github.event.inputs.layer == '03-compute' ||
        github.event_name == 'push')
@@ -202,10 +204,11 @@ jobs:
   deploy-data:
     name: "Deploy 04-data"
     runs-on: ubuntu-latest
-    needs: [deploy-network, deploy-security]
+    needs: [deploy-network, deploy-security, deploy-compute]
     if: >-
       always() &&
-      (needs.deploy-security.result == 'success' || needs.deploy-security.result == 'skipped') &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
       (github.event.inputs.layer == 'all' ||
        github.event.inputs.layer == '04-data' ||
        github.event_name == 'push')
