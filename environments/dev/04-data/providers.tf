@@ -17,7 +17,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "lab-aws-terraform-state-ACCOUNT_ID"
+    bucket         = "lab-aws-terraform-state-361183471902"
     key            = "environments/dev/04-data/terraform.tfstate"
     region         = "ap-southeast-1"
     dynamodb_table = "lab-aws-terraform-locks"
