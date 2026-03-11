@@ -22,3 +22,15 @@ output "rds_security_group_id" {
   description = "RDS security group ID"
   value       = module.security.rds_security_group_id
 }
+
+# ---------- GitHub Actions OIDC ----------
+
+output "github_actions_oidc_provider_arn" {
+  description = "ARN of the GitHub Actions OIDC Identity Provider"
+  value       = aws_iam_openid_connect_provider.github_actions.arn
+}
+
+output "github_actions_role_arn" {
+  description = "ARN of the IAM role for GitHub Actions (set as secret AWS_ROLE_ARN)"
+  value       = aws_iam_role.github_actions.arn
+}
