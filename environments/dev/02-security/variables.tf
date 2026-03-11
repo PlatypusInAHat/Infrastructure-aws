@@ -21,6 +21,7 @@ variable "environment" {
 }
 
 variable "state_bucket" {
+  default     = "lab-aws-terraform-state-361183471902"
   description = "S3 bucket name for remote state"
   type        = string
 }
