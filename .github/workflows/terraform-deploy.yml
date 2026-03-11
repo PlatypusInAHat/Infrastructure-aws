@@ -7,232 +7,232 @@
 name: "Terraform Deploy"
 
 on:
-    push:
-        branches: [main]
-        paths:
-            - "infrastructure/**"
-    workflow_dispatch:
-        inputs:
-            environment:
-                description: "Target environment"
-                required: true
-                default: "dev"
-                type: choice
-                options:
-                    - dev
-                    - prod
-            layer:
-                description: "Specific layer to deploy (or 'all')"
-                required: true
-                default: "all"
-                type: choice
-                options:
-                    - all
-                    - 01-network
-                    - 02-security
-                    - 03-compute
-                    - 04-data
-            action:
-                description: "Terraform action"
-                required: true
-                default: "apply"
-                type: choice
-                options:
-                    - apply
-                    - destroy
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+      layer:
+        description: "Specific layer to deploy (or 'all')"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - 01-network
+          - 02-security
+          - 03-compute
+          - 04-data
+      action:
+        description: "Terraform action"
+        required: true
+        default: "apply"
+        type: choice
+        options:
+          - apply
+          - destroy
 
 permissions:
-    contents: read
-    id-token: write
+  contents: read
+  id-token: write
 
 env:
-    TF_VERSION: "1.7.0"
-    AWS_REGION: "ap-southeast-1"
-    ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+  TF_VERSION: "1.7.0"
+  AWS_REGION: "ap-southeast-1"
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
 
 jobs:
-    # ---------------------------------------------------------------
-    # Layer 01-network
-    # ---------------------------------------------------------------
-    deploy-network:
-        name: "Deploy 01-network"
-        runs-on: ubuntu-latest
-        if: >-
-            github.event.inputs.layer == 'all' ||
-            github.event.inputs.layer == '01-network' ||
-            github.event_name == 'push'
-        environment: ${{ github.event.inputs.environment || 'dev' }}
-        defaults:
-            run:
-                working-directory: infrastructure/environments/${{ github.event.inputs.environment || 'dev' }}/01-network
+  # ---------------------------------------------------------------
+  # Layer 01-network
+  # ---------------------------------------------------------------
+  deploy-network:
+    name: "Deploy 01-network"
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.inputs.layer == 'all' ||
+      github.event.inputs.layer == '01-network' ||
+      github.event_name == 'push'
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: environments/${{ github.event.inputs.environment || 'dev' }}/01-network
 
-        outputs:
-            status: ${{ steps.apply.outcome }}
+    outputs:
+      status: ${{ steps.apply.outcome }}
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                  terraform_version: ${{ env.TF_VERSION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-            - name: Configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v4
-              with:
-                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-                  aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-            - name: Terraform Init
-              run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-            - name: Terraform Apply
-              id: apply
-              if: github.event.inputs.action != 'destroy'
-              run: terraform apply -auto-approve
+      - name: Terraform Apply
+        id: apply
+        if: github.event.inputs.action != 'destroy'
+        run: terraform apply -auto-approve
 
-            - name: Terraform Destroy
-              if: github.event.inputs.action == 'destroy'
-              run: terraform destroy -auto-approve
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
 
-    # ---------------------------------------------------------------
-    # Layer 02-security (depends on 01-network)
-    # ---------------------------------------------------------------
-    deploy-security:
-        name: "Deploy 02-security"
-        runs-on: ubuntu-latest
-        needs: deploy-network
-        if: >-
-            always() &&
-            (needs.deploy-network.result == 'success' || needs.deploy-network.result == 'skipped') &&
-            (github.event.inputs.layer == 'all' ||
-             github.event.inputs.layer == '02-security' ||
-             github.event_name == 'push')
-        environment: ${{ github.event.inputs.environment || 'dev' }}
-        defaults:
-            run:
-                working-directory: infrastructure/environments/${{ github.event.inputs.environment || 'dev' }}/02-security
+  # ---------------------------------------------------------------
+  # Layer 02-security (depends on 01-network)
+  # ---------------------------------------------------------------
+  deploy-security:
+    name: "Deploy 02-security"
+    runs-on: ubuntu-latest
+    needs: deploy-network
+    if: >-
+      always() &&
+      (needs.deploy-network.result == 'success' || needs.deploy-network.result == 'skipped') &&
+      (github.event.inputs.layer == 'all' ||
+       github.event.inputs.layer == '02-security' ||
+       github.event_name == 'push')
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: environments/${{ github.event.inputs.environment || 'dev' }}/02-security
 
-        outputs:
-            status: ${{ steps.apply.outcome }}
+    outputs:
+      status: ${{ steps.apply.outcome }}
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                  terraform_version: ${{ env.TF_VERSION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-            - name: Configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v4
-              with:
-                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-                  aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-            - name: Terraform Init
-              run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-            - name: Terraform Apply
-              id: apply
-              if: github.event.inputs.action != 'destroy'
-              run: terraform apply -auto-approve
+      - name: Terraform Apply
+        id: apply
+        if: github.event.inputs.action != 'destroy'
+        run: terraform apply -auto-approve
 
-            - name: Terraform Destroy
-              if: github.event.inputs.action == 'destroy'
-              run: terraform destroy -auto-approve
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
 
-    # ---------------------------------------------------------------
-    # Layer 03-compute (depends on 01-network + 02-security)
-    # ---------------------------------------------------------------
-    deploy-compute:
-        name: "Deploy 03-compute"
-        runs-on: ubuntu-latest
-        needs: [deploy-network, deploy-security]
-        if: >-
-            always() &&
-            (needs.deploy-security.result == 'success' || needs.deploy-security.result == 'skipped') &&
-            (github.event.inputs.layer == 'all' ||
-             github.event.inputs.layer == '03-compute' ||
-             github.event_name == 'push')
-        environment: ${{ github.event.inputs.environment || 'dev' }}
-        defaults:
-            run:
-                working-directory: infrastructure/environments/${{ github.event.inputs.environment || 'dev' }}/03-compute
+  # ---------------------------------------------------------------
+  # Layer 03-compute (depends on 01-network + 02-security)
+  # ---------------------------------------------------------------
+  deploy-compute:
+    name: "Deploy 03-compute"
+    runs-on: ubuntu-latest
+    needs: [deploy-network, deploy-security]
+    if: >-
+      always() &&
+      (needs.deploy-security.result == 'success' || needs.deploy-security.result == 'skipped') &&
+      (github.event.inputs.layer == 'all' ||
+       github.event.inputs.layer == '03-compute' ||
+       github.event_name == 'push')
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: environments/${{ github.event.inputs.environment || 'dev' }}/03-compute
 
-        outputs:
-            status: ${{ steps.apply.outcome }}
+    outputs:
+      status: ${{ steps.apply.outcome }}
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                  terraform_version: ${{ env.TF_VERSION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-            - name: Configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v4
-              with:
-                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-                  aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-            - name: Terraform Init
-              run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-            - name: Terraform Apply
-              id: apply
-              if: github.event.inputs.action != 'destroy'
-              run: terraform apply -auto-approve
+      - name: Terraform Apply
+        id: apply
+        if: github.event.inputs.action != 'destroy'
+        run: terraform apply -auto-approve
 
-            - name: Terraform Destroy
-              if: github.event.inputs.action == 'destroy'
-              run: terraform destroy -auto-approve
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
 
-    # ---------------------------------------------------------------
-    # Layer 04-data (depends on 01-network + 02-security)
-    # ---------------------------------------------------------------
-    deploy-data:
-        name: "Deploy 04-data"
-        runs-on: ubuntu-latest
-        needs: [deploy-network, deploy-security]
-        if: >-
-            always() &&
-            (needs.deploy-security.result == 'success' || needs.deploy-security.result == 'skipped') &&
-            (github.event.inputs.layer == 'all' ||
-             github.event.inputs.layer == '04-data' ||
-             github.event_name == 'push')
-        environment: ${{ github.event.inputs.environment || 'dev' }}
-        defaults:
-            run:
-                working-directory: infrastructure/environments/${{ github.event.inputs.environment || 'dev' }}/04-data
+  # ---------------------------------------------------------------
+  # Layer 04-data (depends on 01-network + 02-security)
+  # ---------------------------------------------------------------
+  deploy-data:
+    name: "Deploy 04-data"
+    runs-on: ubuntu-latest
+    needs: [deploy-network, deploy-security]
+    if: >-
+      always() &&
+      (needs.deploy-security.result == 'success' || needs.deploy-security.result == 'skipped') &&
+      (github.event.inputs.layer == 'all' ||
+       github.event.inputs.layer == '04-data' ||
+       github.event_name == 'push')
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: environments/${{ github.event.inputs.environment || 'dev' }}/04-data
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                  terraform_version: ${{ env.TF_VERSION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
 
-            - name: Configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v4
-              with:
-                  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-                  aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-            - name: Terraform Init
-              run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-            - name: Terraform Apply
-              id: apply
-              if: github.event.inputs.action != 'destroy'
-              run: terraform apply -auto-approve
+      - name: Terraform Apply
+        id: apply
+        if: github.event.inputs.action != 'destroy'
+        run: terraform apply -auto-approve
 
-            - name: Terraform Destroy
-              if: github.event.inputs.action == 'destroy'
-              run: terraform destroy -auto-approve
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
