@@ -37,6 +37,7 @@ variable "rds_engine_version" {
 variable "rds_instance_class" {
   description = "RDS instance class"
   type        = string
+  default     = "db.t3.micro"
 }
 
 variable "rds_allocated_storage" {
