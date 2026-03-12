@@ -89,16 +89,16 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action != 'destroy'
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -input=false
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -input=false
 
   # ---------------------------------------------------------------
   # Layer 02-security (depends on 01-network)
@@ -138,16 +138,16 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action != 'destroy'
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -input=false
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -input=false
 
   # ---------------------------------------------------------------
   # Layer 03-compute (depends on 01-network + 02-security)
@@ -187,16 +187,16 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action != 'destroy'
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -input=false
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -input=false
 
   # ---------------------------------------------------------------
   # Layer 04-data (depends on 01-network + 02-security)
@@ -233,13 +233,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action != 'destroy'
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -input=false
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -input=false
