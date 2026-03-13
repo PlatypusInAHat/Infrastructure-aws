@@ -266,3 +266,57 @@ resource "aws_iam_role_policy_attachment" "app" {
   policy_arn = aws_iam_policy.app.arn
   role       = aws_iam_role.app.name
 }
+# ---------- External Secrets Operator (ESO) IRSA ----------
+
+data "aws_iam_policy_document" "eso_assume_role" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_provider_arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:external-secrets:external-secrets"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "eso" {
+  name               = "${var.project_name}-${var.environment}-eso-role"
+  assume_role_policy = data.aws_iam_policy_document.eso_assume_role.json
+  tags               = var.common_tags
+}
+
+resource "aws_iam_policy" "eso" {
+  name        = "${var.project_name}-${var.environment}-eso-policy"
+  description = "IAM policy for External Secrets Operator to read from Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = "*" # Restrict this in production to specific ARNs
+      }
+    ]
+  })
+
+  tags = var.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "eso" {
+  policy_arn = aws_iam_policy.eso.arn
+  role       = aws_iam_role.eso.name
+}

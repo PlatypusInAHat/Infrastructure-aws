@@ -55,3 +55,20 @@ module "rds" {
   performance_insights_enabled = var.rds_performance_insights
   common_tags                  = local.common_tags
 }
+# ---------- Secrets Manager (for GitHub Token) ----------
+
+resource "aws_secretsmanager_secret" "github_token" {
+  name        = "${var.project_name}-${var.environment}-github-token"
+  description = "GitHub Personal Access Token for ArgoCD"
+  
+  recovery_window_in_days = 0 # Force delete for lab environment
+  
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-github-token"
+  })
+}
+
+output "github_token_secret_arn" {
+  value       = aws_secretsmanager_secret.github_token.arn
+  description = "The ARN of the GitHub token secret"
+}

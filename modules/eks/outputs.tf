@@ -42,3 +42,7 @@ output "app_role_arn" {
   description = "ARN of the application IRSA role"
   value       = aws_iam_role.app.arn
 }
+output "eso_role_arn" {
+  value       = aws_iam_role.eso.arn
+  description = "The ARN of the IAM role for External Secrets Operator"
+}

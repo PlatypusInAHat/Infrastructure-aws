@@ -105,3 +105,30 @@ resource "helm_release" "lb_controller" {
 
   depends_on = [module.eks]
 }
+# ---------- External Secrets Operator (ESO) ----------
+
+resource "kubernetes_namespace" "eso" {
+  metadata {
+    name = "external-secrets"
+  }
+}
+
+resource "helm_release" "external_secrets" {
+  name       = "external-secrets"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  namespace  = kubernetes_namespace.eso.metadata[0].name
+  version    = "0.9.13"
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.eks.eso_role_arn
+  }
+
+  depends_on = [module.eks, kubernetes_namespace.eso]
+}
