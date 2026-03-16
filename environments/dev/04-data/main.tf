@@ -60,9 +60,9 @@ module "rds" {
 resource "aws_secretsmanager_secret" "github_token" {
   name        = "${var.project_name}-${var.environment}-github-token"
   description = "GitHub Personal Access Token for ArgoCD"
-  
+
   recovery_window_in_days = 0 # Force delete for lab environment
-  
+
   tags = merge(local.common_tags, {
     Name = "${var.project_name}-${var.environment}-github-token"
   })
