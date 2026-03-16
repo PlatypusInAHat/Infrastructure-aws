@@ -78,30 +78,17 @@ resource "helm_release" "lb_controller" {
   namespace  = "kube-system"
   version    = "1.7.1"
 
-  set {
-    name  = "clusterName"
-    value = module.eks.cluster_name
-  }
-
-  set {
-    name  = "serviceAccount.create"
-    value = "false"
-  }
-
-  set {
-    name  = "serviceAccount.name"
-    value = kubernetes_service_account.lb_controller.metadata[0].name
-  }
-
-  set {
-    name  = "region"
-    value = var.region
-  }
-
-  set {
-    name  = "vpcId"
-    value = data.terraform_remote_state.network.outputs.vpc_id
-  }
+  values = [
+    yamlencode({
+      clusterName = module.eks.cluster_name
+      serviceAccount = {
+        create = false
+        name   = kubernetes_service_account.lb_controller.metadata[0].name
+      }
+      region = var.region
+      vpcId  = data.terraform_remote_state.network.outputs.vpc_id
+    })
+  ]
 
   depends_on = [module.eks]
 }
@@ -120,15 +107,16 @@ resource "helm_release" "external_secrets" {
   namespace  = kubernetes_namespace.eso.metadata[0].name
   version    = "0.9.13"
 
-  set {
-    name  = "installCRDs"
-    value = "true"
-  }
-
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = module.eks.eso_role_arn
-  }
+  values = [
+    yamlencode({
+      installCRDs = true
+      serviceAccount = {
+        annotations = {
+          "eks.amazonaws.com/role-arn" = module.eks.eso_role_arn
+        }
+      }
+    })
+  ]
 
   depends_on = [module.eks, kubernetes_namespace.eso]
 }
