@@ -35,14 +35,15 @@ output "node_group_role_arn" {
 
 output "lb_controller_role_arn" {
   description = "ARN of the AWS Load Balancer Controller IRSA role"
-  value       = aws_iam_role.lb_controller.arn
+  value       = aws_iam_role.irsa["lb_controller"].arn
 }
 
 output "app_role_arn" {
   description = "ARN of the application IRSA role"
-  value       = aws_iam_role.app.arn
+  value       = aws_iam_role.irsa["app"].arn
 }
+
 output "eso_role_arn" {
-  value       = aws_iam_role.eso.arn
+  value       = aws_iam_role.irsa["eso"].arn
   description = "The ARN of the IAM role for External Secrets Operator"
 }

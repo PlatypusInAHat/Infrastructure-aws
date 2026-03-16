@@ -59,64 +59,101 @@ module "eks" {
   common_tags               = local.common_tags
 }
 
-# ---------- AWS Load Balancer Controller ----------
+# ---------- Kubernetes Namespaces ----------
 
-resource "kubernetes_service_account" "lb_controller" {
+resource "kubernetes_namespace" "this" {
+  for_each = toset(["external-secrets"])
   metadata {
-    name      = "aws-load-balancer-controller"
-    namespace = "kube-system"
-    annotations = {
-      "eks.amazonaws.com/role-arn" = module.eks.lb_controller_role_arn
+    name = each.value
+  }
+}
+
+# ---------- Helm Releases & Service Accounts ----------
+
+locals {
+  helm_releases = {
+    lb_controller = {
+      name            = "aws-load-balancer-controller"
+      repository      = "https://aws.github.io/eks-charts"
+      chart           = "aws-load-balancer-controller"
+      version         = "1.7.1"
+      namespace       = "kube-system"
+      service_account = "aws-load-balancer-controller"
+      role_arn        = module.eks.lb_controller_role_arn
+      values = {
+        clusterName = module.eks.cluster_name
+        region      = var.region
+        vpcId       = data.terraform_remote_state.network.outputs.vpc_id
+      }
+    }
+    external_secrets = {
+      name            = "external-secrets"
+      repository      = "https://charts.external-secrets.io"
+      chart           = "external-secrets"
+      version         = "0.9.13"
+      namespace       = "external-secrets"
+      service_account = "external-secrets"
+      role_arn        = module.eks.eso_role_arn
+      values = {
+        installCRDs = true
+      }
     }
   }
 }
 
-resource "helm_release" "lb_controller" {
-  name       = "aws-load-balancer-controller"
-  repository = "https://aws.github.io/eks-charts"
-  chart      = "aws-load-balancer-controller"
-  namespace  = "kube-system"
-  version    = "1.7.1"
+resource "kubernetes_service_account" "this" {
+  for_each = local.helm_releases
+
+  metadata {
+    name      = each.value.service_account
+    namespace = each.value.namespace
+    annotations = {
+      "eks.amazonaws.com/role-arn" = each.value.role_arn
+    }
+  }
+
+  depends_on = [kubernetes_namespace.this]
+}
+
+resource "helm_release" "this" {
+  for_each = local.helm_releases
+
+  name       = each.value.name
+  repository = each.value.repository
+  chart      = each.value.chart
+  version    = each.value.version
+  namespace  = each.value.namespace
 
   values = [
-    yamlencode({
-      clusterName = module.eks.cluster_name
+    yamlencode(merge(each.value.values, {
       serviceAccount = {
         create = false
-        name   = kubernetes_service_account.lb_controller.metadata[0].name
+        name   = kubernetes_service_account.this[each.key].metadata[0].name
       }
-      region = var.region
-      vpcId  = data.terraform_remote_state.network.outputs.vpc_id
-    })
+    }))
   ]
 
-  depends_on = [module.eks]
-}
-# ---------- External Secrets Operator (ESO) ----------
-
-resource "kubernetes_namespace" "eso" {
-  metadata {
-    name = "external-secrets"
-  }
+  depends_on = [module.eks, kubernetes_service_account.this]
 }
 
-resource "helm_release" "external_secrets" {
-  name       = "external-secrets"
-  repository = "https://charts.external-secrets.io"
-  chart      = "external-secrets"
-  namespace  = kubernetes_namespace.eso.metadata[0].name
-  version    = "0.9.13"
+# ---------- Moved Blocks (State Migration) ----------
 
-  values = [
-    yamlencode({
-      installCRDs = true
-      serviceAccount = {
-        annotations = {
-          "eks.amazonaws.com/role-arn" = module.eks.eso_role_arn
-        }
-      }
-    })
-  ]
+moved {
+  from = kubernetes_service_account.lb_controller
+  to   = kubernetes_service_account.this["lb_controller"]
+}
 
-  depends_on = [module.eks, kubernetes_namespace.eso]
+moved {
+  from = helm_release.lb_controller
+  to   = helm_release.this["lb_controller"]
+}
+
+moved {
+  from = kubernetes_namespace.eso
+  to   = kubernetes_namespace.this["external-secrets"]
+}
+
+moved {
+  from = helm_release.external_secrets
+  to   = helm_release.this["external_secrets"]
 }

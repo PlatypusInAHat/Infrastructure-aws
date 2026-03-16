@@ -11,13 +11,11 @@ variable "environment" {
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string
-  default     = "10.0.0.0/16"
 }
 
 variable "az_count" {
   description = "Number of Availability Zones to use"
   type        = number
-  default     = 2
 
   validation {
     condition     = var.az_count >= 2 && var.az_count <= 3
@@ -28,7 +26,6 @@ variable "az_count" {
 variable "single_nat_gateway" {
   description = "Use a single NAT Gateway (cost savings for non-prod)"
   type        = bool
-  default     = true
 }
 
 variable "cluster_name" {
@@ -39,5 +36,4 @@ variable "cluster_name" {
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
-  default     = {}
 }

@@ -21,11 +21,9 @@ variable "cluster_name" {
 variable "db_port" {
   description = "Database port"
   type        = number
-  default     = 5432
 }
 
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
-  default     = {}
 }
