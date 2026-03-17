@@ -98,3 +98,12 @@ variable "rds_maintenance_window" {
   description = "Preferred maintenance window (UTC)"
   type        = string
 }
+
+variable "rds_parameters" {
+  description = "A list of DB parameters to apply"
+  type = list(object({
+    name  = string
+    value = string
+  }))
+  default = []
+}

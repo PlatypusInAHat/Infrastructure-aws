@@ -45,34 +45,49 @@ variable "enabled_log_types" {
 
 # ---------- Node Group Variables ----------
 
+variable "node_groups" {
+  description = "Map of node group configurations"
+  type = map(object({
+    instance_types = list(string)
+    capacity_type  = string
+    disk_size      = number
+    desired_size   = number
+    min_size       = number
+    max_size       = number
+    labels         = optional(map(string), {})
+  }))
+}
+
+# ---------- Legacy Variables (Optional for IDE Compatibility) ----------
+
 variable "node_instance_types" {
-  description = "Instance types for the managed node group"
-  type        = list(string)
+  type    = list(string)
+  default = null
 }
 
 variable "node_capacity_type" {
-  description = "Capacity type for the node group (ON_DEMAND or SPOT)"
-  type        = string
+  type    = string
+  default = null
 }
 
 variable "node_disk_size" {
-  description = "Disk size for worker nodes (GB)"
-  type        = number
+  type    = number
+  default = null
 }
 
 variable "node_desired_size" {
-  description = "Desired number of worker nodes"
-  type        = number
+  type    = number
+  default = null
 }
 
 variable "node_min_size" {
-  description = "Minimum number of worker nodes"
-  type        = number
+  type    = number
+  default = null
 }
 
 variable "node_max_size" {
-  description = "Maximum number of worker nodes"
-  type        = number
+  type    = number
+  default = null
 }
 
 # ---------- IRSA Variables ----------

@@ -34,7 +34,7 @@ data "terraform_remote_state" "security" {
   }
 }
 
-# ---------- EKS ----------
+# ---------- EKS Module ----------
 
 module "eks" {
   source = "../../../modules/eks"
@@ -48,12 +48,7 @@ module "eks" {
   cluster_security_group_id = data.terraform_remote_state.security.outputs.eks_cluster_security_group_id
   endpoint_public_access    = var.eks_endpoint_public_access
   enabled_log_types         = var.eks_enabled_log_types
-  node_instance_types       = var.eks_node_instance_types
-  node_capacity_type        = var.eks_node_capacity_type
-  node_disk_size            = var.eks_node_disk_size
-  node_desired_size         = var.eks_node_desired_size
-  node_min_size             = var.eks_node_min_size
-  node_max_size             = var.eks_node_max_size
+  node_groups               = var.eks_node_groups
   app_namespace             = var.app_namespace
   app_service_account_name  = var.app_service_account_name
   common_tags               = local.common_tags
@@ -66,94 +61,4 @@ resource "kubernetes_namespace" "this" {
   metadata {
     name = each.value
   }
-}
-
-# ---------- Helm Releases & Service Accounts ----------
-
-locals {
-  helm_releases = {
-    lb_controller = {
-      name            = "aws-load-balancer-controller"
-      repository      = "https://aws.github.io/eks-charts"
-      chart           = "aws-load-balancer-controller"
-      version         = "1.7.1"
-      namespace       = "kube-system"
-      service_account = "aws-load-balancer-controller"
-      role_arn        = module.eks.lb_controller_role_arn
-      values = {
-        clusterName = module.eks.cluster_name
-        region      = var.region
-        vpcId       = data.terraform_remote_state.network.outputs.vpc_id
-      }
-    }
-    external_secrets = {
-      name            = "external-secrets"
-      repository      = "https://charts.external-secrets.io"
-      chart           = "external-secrets"
-      version         = "0.9.13"
-      namespace       = "external-secrets"
-      service_account = "external-secrets"
-      role_arn        = module.eks.eso_role_arn
-      values = {
-        installCRDs = true
-      }
-    }
-  }
-}
-
-resource "kubernetes_service_account" "this" {
-  for_each = local.helm_releases
-
-  metadata {
-    name      = each.value.service_account
-    namespace = each.value.namespace
-    annotations = {
-      "eks.amazonaws.com/role-arn" = each.value.role_arn
-    }
-  }
-
-  depends_on = [kubernetes_namespace.this]
-}
-
-resource "helm_release" "this" {
-  for_each = local.helm_releases
-
-  name       = each.value.name
-  repository = each.value.repository
-  chart      = each.value.chart
-  version    = each.value.version
-  namespace  = each.value.namespace
-
-  values = [
-    yamlencode(merge(each.value.values, {
-      serviceAccount = {
-        create = false
-        name   = kubernetes_service_account.this[each.key].metadata[0].name
-      }
-    }))
-  ]
-
-  depends_on = [module.eks, kubernetes_service_account.this]
-}
-
-# ---------- Moved Blocks (State Migration) ----------
-
-moved {
-  from = kubernetes_service_account.lb_controller
-  to   = kubernetes_service_account.this["lb_controller"]
-}
-
-moved {
-  from = helm_release.lb_controller
-  to   = helm_release.this["lb_controller"]
-}
-
-moved {
-  from = kubernetes_namespace.eso
-  to   = kubernetes_namespace.this["external-secrets"]
-}
-
-moved {
-  from = helm_release.external_secrets
-  to   = helm_release.this["external_secrets"]
 }

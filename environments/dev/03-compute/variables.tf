@@ -39,34 +39,17 @@ variable "eks_enabled_log_types" {
   type        = list(string)
 }
 
-variable "eks_node_instance_types" {
-  description = "Instance types for EKS node group"
-  type        = list(string)
-}
-
-variable "eks_node_capacity_type" {
-  description = "Node capacity type (ON_DEMAND or SPOT)"
-  type        = string
-}
-
-variable "eks_node_disk_size" {
-  description = "Node disk size in GB"
-  type        = number
-}
-
-variable "eks_node_desired_size" {
-  description = "Desired node count"
-  type        = number
-}
-
-variable "eks_node_min_size" {
-  description = "Minimum node count"
-  type        = number
-}
-
-variable "eks_node_max_size" {
-  description = "Maximum node count"
-  type        = number
+variable "eks_node_groups" {
+  description = "Map of EKS node group configurations"
+  type = map(object({
+    instance_types = list(string)
+    capacity_type  = string
+    disk_size      = number
+    desired_size   = number
+    min_size       = number
+    max_size       = number
+    labels         = optional(map(string), {})
+  }))
 }
 
 # ---------- Application ----------

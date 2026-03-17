@@ -70,14 +70,12 @@ resource "aws_db_parameter_group" "this" {
   family      = local.engine_family
   description = "Custom parameter group for ${var.project_name} ${var.environment}"
 
-  parameter {
-    name  = "log_connections"
-    value = "1"
-  }
-
-  parameter {
-    name  = "log_disconnections"
-    value = "1"
+  dynamic "parameter" {
+    for_each = var.db_parameters
+    content {
+      name  = parameter.value.name
+      value = parameter.value.value
+    }
   }
 
   tags = merge(var.common_tags, {

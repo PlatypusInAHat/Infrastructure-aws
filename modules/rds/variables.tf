@@ -93,6 +93,24 @@ variable "performance_insights_enabled" {
   type        = bool
 }
 
+variable "db_parameters" {
+  description = "A list of DB parameters to apply"
+  type = list(object({
+    name  = string
+    value = string
+  }))
+  default = []
+}
+
+# ---------- Legacy Variables (Optional for IDE Compatibility) ----------
+# These are kept temporarily to resolve persistent IDE validation cache issues.
+# They are NOT used in the module logic.
+
+variable "storage_type_legacy" {
+  type    = string
+  default = null
+}
+
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

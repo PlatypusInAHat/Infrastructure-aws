@@ -15,9 +15,12 @@ data "aws_availability_zones" "available" {
 locals {
   azs = slice(data.aws_availability_zones.available.names, 0, var.az_count)
 
-  public_subnets   = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 4, i)]
-  private_subnets  = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 4, i + var.az_count)]
-  database_subnets = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 4, i + var.az_count * 2)]
+  # Mapping of index to AZ name for stable keys
+  az_map = { for i, az in local.azs : i => az }
+
+  public_subnets   = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i) }
+  private_subnets  = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i + var.az_count) }
+  database_subnets = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i + var.az_count * 2) }
 }
 
 # ---------- VPC ----------
@@ -45,15 +48,15 @@ resource "aws_internet_gateway" "this" {
 # ---------- Public Subnets ----------
 
 resource "aws_subnet" "public" {
-  count = var.az_count
+  for_each = toset(local.azs)
 
   vpc_id                  = aws_vpc.this.id
-  cidr_block              = local.public_subnets[count.index]
-  availability_zone       = local.azs[count.index]
+  cidr_block              = local.public_subnets[each.value]
+  availability_zone       = each.value
   map_public_ip_on_launch = true
 
   tags = merge(var.common_tags, {
-    Name                                        = "${var.project_name}-${var.environment}-public-${local.azs[count.index]}"
+    Name                                        = "${var.project_name}-${var.environment}-public-${each.value}"
     "kubernetes.io/role/elb"                    = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   })
@@ -62,14 +65,14 @@ resource "aws_subnet" "public" {
 # ---------- Private Subnets ----------
 
 resource "aws_subnet" "private" {
-  count = var.az_count
+  for_each = toset(local.azs)
 
   vpc_id            = aws_vpc.this.id
-  cidr_block        = local.private_subnets[count.index]
-  availability_zone = local.azs[count.index]
+  cidr_block        = local.private_subnets[each.value]
+  availability_zone = each.value
 
   tags = merge(var.common_tags, {
-    Name                                        = "${var.project_name}-${var.environment}-private-${local.azs[count.index]}"
+    Name                                        = "${var.project_name}-${var.environment}-private-${each.value}"
     "kubernetes.io/role/internal-elb"           = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   })
@@ -78,38 +81,38 @@ resource "aws_subnet" "private" {
 # ---------- Database Subnets ----------
 
 resource "aws_subnet" "database" {
-  count = var.az_count
+  for_each = toset(local.azs)
 
   vpc_id            = aws_vpc.this.id
-  cidr_block        = local.database_subnets[count.index]
-  availability_zone = local.azs[count.index]
+  cidr_block        = local.database_subnets[each.value]
+  availability_zone = each.value
 
   tags = merge(var.common_tags, {
-    Name = "${var.project_name}-${var.environment}-database-${local.azs[count.index]}"
+    Name = "${var.project_name}-${var.environment}-database-${each.value}"
   })
 }
 
 # ---------- NAT Gateway ----------
 
 resource "aws_eip" "nat" {
-  count  = var.single_nat_gateway ? 1 : var.az_count
-  domain = "vpc"
+  for_each = var.single_nat_gateway ? toset([local.azs[0]]) : toset(local.azs)
+  domain   = "vpc"
 
   tags = merge(var.common_tags, {
-    Name = "${var.project_name}-${var.environment}-nat-eip-${count.index + 1}"
+    Name = "${var.project_name}-${var.environment}-nat-eip-${each.value}"
   })
 
   depends_on = [aws_internet_gateway.this]
 }
 
 resource "aws_nat_gateway" "this" {
-  count = var.single_nat_gateway ? 1 : var.az_count
+  for_each = var.single_nat_gateway ? toset([local.azs[0]]) : toset(local.azs)
 
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
+  allocation_id = aws_eip.nat[each.value].id
+  subnet_id     = aws_subnet.public[each.value].id
 
   tags = merge(var.common_tags, {
-    Name = "${var.project_name}-${var.environment}-nat-${count.index + 1}"
+    Name = "${var.project_name}-${var.environment}-nat-${each.value}"
   })
 
   depends_on = [aws_internet_gateway.this]
@@ -132,34 +135,34 @@ resource "aws_route" "public_internet" {
 }
 
 resource "aws_route_table_association" "public" {
-  count = var.az_count
+  for_each = toset(local.azs)
 
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = aws_subnet.public[each.value].id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_route_table" "private" {
-  count  = var.single_nat_gateway ? 1 : var.az_count
-  vpc_id = aws_vpc.this.id
+  for_each = var.single_nat_gateway ? toset([local.azs[0]]) : toset(local.azs)
+  vpc_id   = aws_vpc.this.id
 
   tags = merge(var.common_tags, {
-    Name = "${var.project_name}-${var.environment}-private-rt-${count.index + 1}"
+    Name = "${var.project_name}-${var.environment}-private-rt-${each.value}"
   })
 }
 
 resource "aws_route" "private_nat" {
-  count = var.single_nat_gateway ? 1 : var.az_count
+  for_each = var.single_nat_gateway ? toset([local.azs[0]]) : toset(local.azs)
 
-  route_table_id         = aws_route_table.private[count.index].id
+  route_table_id         = aws_route_table.private[each.value].id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.this[count.index].id
+  nat_gateway_id         = aws_nat_gateway.this[each.value].id
 }
 
 resource "aws_route_table_association" "private" {
-  count = var.az_count
+  for_each = toset(local.azs)
 
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private[var.single_nat_gateway ? 0 : count.index].id
+  subnet_id      = aws_subnet.private[each.value].id
+  route_table_id = aws_route_table.private[var.single_nat_gateway ? local.azs[0] : each.value].id
 }
 
 resource "aws_route_table" "database" {
@@ -171,9 +174,9 @@ resource "aws_route_table" "database" {
 }
 
 resource "aws_route_table_association" "database" {
-  count = var.az_count
+  for_each = toset(local.azs)
 
-  subnet_id      = aws_subnet.database[count.index].id
+  subnet_id      = aws_subnet.database[each.value].id
   route_table_id = aws_route_table.database.id
 }
 
@@ -182,9 +185,86 @@ resource "aws_route_table_association" "database" {
 resource "aws_db_subnet_group" "this" {
   name        = "${var.project_name}-${var.environment}-db-subnet-group"
   description = "Database subnet group for ${var.project_name} ${var.environment}"
-  subnet_ids  = aws_subnet.database[*].id
+  subnet_ids  = [for s in aws_subnet.database : s.id]
 
   tags = merge(var.common_tags, {
     Name = "${var.project_name}-${var.environment}-db-subnet-group"
   })
+}
+
+# ---------- Moved blocks for state migration ----------
+
+moved {
+  from = aws_subnet.public[0]
+  to   = aws_subnet.public["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_subnet.public[1]
+  to   = aws_subnet.public["ap-southeast-1b"]
+}
+
+moved {
+  from = aws_subnet.private[0]
+  to   = aws_subnet.private["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_subnet.private[1]
+  to   = aws_subnet.private["ap-southeast-1b"]
+}
+
+moved {
+  from = aws_subnet.database[0]
+  to   = aws_subnet.database["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_subnet.database[1]
+  to   = aws_subnet.database["ap-southeast-1b"]
+}
+
+moved {
+  from = aws_eip.nat[0]
+  to   = aws_eip.nat["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_nat_gateway.this[0]
+  to   = aws_nat_gateway.this["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_route_table.private[0]
+  to   = aws_route_table.private["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_route_table_association.public[0]
+  to   = aws_route_table_association.public["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_route_table_association.public[1]
+  to   = aws_route_table_association.public["ap-southeast-1b"]
+}
+
+moved {
+  from = aws_route_table_association.private[0]
+  to   = aws_route_table_association.private["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_route_table_association.private[1]
+  to   = aws_route_table_association.private["ap-southeast-1b"]
+}
+
+moved {
+  from = aws_route_table_association.database[0]
+  to   = aws_route_table_association.database["ap-southeast-1a"]
+}
+
+moved {
+  from = aws_route_table_association.database[1]
+  to   = aws_route_table_association.database["ap-southeast-1b"]
 }

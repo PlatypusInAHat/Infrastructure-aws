@@ -19,36 +19,6 @@ resource "aws_security_group" "alb" {
   }
 }
 
-resource "aws_security_group_rule" "alb_ingress_http" {
-  type              = "ingress"
-  from_port         = 80
-  to_port           = 80
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.alb.id
-  description       = "Allow HTTP from internet"
-}
-
-resource "aws_security_group_rule" "alb_ingress_https" {
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.alb.id
-  description       = "Allow HTTPS from internet"
-}
-
-resource "aws_security_group_rule" "alb_egress_to_nodes" {
-  type                     = "egress"
-  from_port                = 0
-  to_port                  = 65535
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_nodes.id
-  security_group_id        = aws_security_group.alb.id
-  description              = "Allow traffic to EKS nodes"
-}
-
 # ---------- EKS Cluster Security Group ----------
 
 resource "aws_security_group" "eks_cluster" {
@@ -63,36 +33,6 @@ resource "aws_security_group" "eks_cluster" {
   lifecycle {
     create_before_destroy = true
   }
-}
-
-resource "aws_security_group_rule" "cluster_ingress_from_nodes" {
-  type                     = "ingress"
-  from_port                = 443
-  to_port                  = 443
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_nodes.id
-  security_group_id        = aws_security_group.eks_cluster.id
-  description              = "Allow HTTPS from worker nodes"
-}
-
-resource "aws_security_group_rule" "cluster_egress_to_nodes" {
-  type                     = "egress"
-  from_port                = 1025
-  to_port                  = 65535
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_nodes.id
-  security_group_id        = aws_security_group.eks_cluster.id
-  description              = "Allow traffic to worker nodes"
-}
-
-resource "aws_security_group_rule" "cluster_egress_to_nodes_https" {
-  type                     = "egress"
-  from_port                = 443
-  to_port                  = 443
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_nodes.id
-  security_group_id        = aws_security_group.eks_cluster.id
-  description              = "Allow HTTPS to worker nodes"
 }
 
 # ---------- EKS Nodes Security Group ----------
@@ -112,56 +52,6 @@ resource "aws_security_group" "eks_nodes" {
   }
 }
 
-resource "aws_security_group_rule" "nodes_internal" {
-  type                     = "ingress"
-  from_port                = 0
-  to_port                  = 65535
-  protocol                 = "-1"
-  source_security_group_id = aws_security_group.eks_nodes.id
-  security_group_id        = aws_security_group.eks_nodes.id
-  description              = "Allow node-to-node communication"
-}
-
-resource "aws_security_group_rule" "nodes_ingress_from_cluster" {
-  type                     = "ingress"
-  from_port                = 1025
-  to_port                  = 65535
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_cluster.id
-  security_group_id        = aws_security_group.eks_nodes.id
-  description              = "Allow traffic from control plane"
-}
-
-resource "aws_security_group_rule" "nodes_ingress_from_cluster_https" {
-  type                     = "ingress"
-  from_port                = 443
-  to_port                  = 443
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_cluster.id
-  security_group_id        = aws_security_group.eks_nodes.id
-  description              = "Allow HTTPS from control plane"
-}
-
-resource "aws_security_group_rule" "nodes_ingress_from_alb" {
-  type                     = "ingress"
-  from_port                = 0
-  to_port                  = 65535
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.alb.id
-  security_group_id        = aws_security_group.eks_nodes.id
-  description              = "Allow traffic from ALB"
-}
-
-resource "aws_security_group_rule" "nodes_egress" {
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.eks_nodes.id
-  description       = "Allow all outbound traffic"
-}
-
 # ---------- RDS Security Group ----------
 
 resource "aws_security_group" "rds" {
@@ -178,12 +68,200 @@ resource "aws_security_group" "rds" {
   }
 }
 
-resource "aws_security_group_rule" "rds_ingress_from_nodes" {
-  type                     = "ingress"
-  from_port                = var.db_port
-  to_port                  = var.db_port
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.eks_nodes.id
-  security_group_id        = aws_security_group.rds.id
-  description              = "Allow database access from EKS nodes only"
+# ---------- Security Group Rules Mapping ----------
+
+locals {
+  rules = {
+    # ALB Rules
+    alb_http = {
+      sg_id       = aws_security_group.alb.id
+      type        = "ingress"
+      from        = 80
+      to          = 80
+      proto       = "tcp"
+      cidr        = ["0.0.0.0/0"]
+      description = "Allow HTTP from internet"
+    }
+    alb_https = {
+      sg_id       = aws_security_group.alb.id
+      type        = "ingress"
+      from        = 443
+      to          = 443
+      proto       = "tcp"
+      cidr        = ["0.0.0.0/0"]
+      description = "Allow HTTPS from internet"
+    }
+    alb_to_nodes = {
+      sg_id       = aws_security_group.alb.id
+      type        = "egress"
+      from        = 0
+      to          = 65535
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_nodes.id
+      description = "Allow traffic to EKS nodes"
+    }
+
+    # EKS Cluster Rules
+    cluster_from_nodes = {
+      sg_id       = aws_security_group.eks_cluster.id
+      type        = "ingress"
+      from        = 443
+      to          = 443
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_nodes.id
+      description = "Allow HTTPS from worker nodes"
+    }
+    cluster_to_nodes_all = {
+      sg_id       = aws_security_group.eks_cluster.id
+      type        = "egress"
+      from        = 1025
+      to          = 65535
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_nodes.id
+      description = "Allow traffic to worker nodes"
+    }
+    cluster_to_nodes_https = {
+      sg_id       = aws_security_group.eks_cluster.id
+      type        = "egress"
+      from        = 443
+      to          = 443
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_nodes.id
+      description = "Allow HTTPS to worker nodes"
+    }
+
+    # EKS Nodes Rules
+    nodes_internal = {
+      sg_id       = aws_security_group.eks_nodes.id
+      type        = "ingress"
+      from        = 0
+      to          = 65535
+      proto       = "-1"
+      source_sg   = aws_security_group.eks_nodes.id
+      description = "Allow node-to-node communication"
+    }
+    nodes_from_cluster = {
+      sg_id       = aws_security_group.eks_nodes.id
+      type        = "ingress"
+      from        = 1025
+      to          = 65535
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_cluster.id
+      description = "Allow traffic from control plane"
+    }
+    nodes_from_cluster_https = {
+      sg_id       = aws_security_group.eks_nodes.id
+      type        = "ingress"
+      from        = 443
+      to          = 443
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_cluster.id
+      description = "Allow HTTPS from control plane"
+    }
+    nodes_from_alb = {
+      sg_id       = aws_security_group.eks_nodes.id
+      type        = "ingress"
+      from        = 0
+      to          = 65535
+      proto       = "tcp"
+      source_sg   = aws_security_group.alb.id
+      description = "Allow traffic from ALB"
+    }
+    nodes_egress_all = {
+      sg_id       = aws_security_group.eks_nodes.id
+      type        = "egress"
+      from        = 0
+      to          = 0
+      proto       = "-1"
+      cidr        = ["0.0.0.0/0"]
+      description = "Allow all outbound traffic"
+    }
+
+    # RDS Rules
+    rds_from_nodes = {
+      sg_id       = aws_security_group.rds.id
+      type        = "ingress"
+      from        = var.db_port
+      to          = var.db_port
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_nodes.id
+      description = "Allow database access from EKS nodes only"
+    }
+  }
+}
+
+resource "aws_security_group_rule" "rules" {
+  for_each = local.rules
+
+  security_group_id = each.value.sg_id
+  type              = each.value.type
+  from_port         = each.value.from
+  to_port           = each.value.to
+  protocol          = each.value.proto
+  description       = each.value.description
+
+  cidr_blocks              = lookup(each.value, "cidr", null)
+  source_security_group_id = lookup(each.value, "source_sg", null)
+}
+
+# ---------- Moved blocks for state migration ----------
+
+moved {
+  from = aws_security_group_rule.alb_ingress_http
+  to   = aws_security_group_rule.rules["alb_http"]
+}
+
+moved {
+  from = aws_security_group_rule.alb_ingress_https
+  to   = aws_security_group_rule.rules["alb_https"]
+}
+
+moved {
+  from = aws_security_group_rule.alb_egress_to_nodes
+  to   = aws_security_group_rule.rules["alb_to_nodes"]
+}
+
+moved {
+  from = aws_security_group_rule.cluster_ingress_from_nodes
+  to   = aws_security_group_rule.rules["cluster_from_nodes"]
+}
+
+moved {
+  from = aws_security_group_rule.cluster_egress_to_nodes
+  to   = aws_security_group_rule.rules["cluster_to_nodes_all"]
+}
+
+moved {
+  from = aws_security_group_rule.cluster_egress_to_nodes_https
+  to   = aws_security_group_rule.rules["cluster_to_nodes_https"]
+}
+
+moved {
+  from = aws_security_group_rule.nodes_internal
+  to   = aws_security_group_rule.rules["nodes_internal"]
+}
+
+moved {
+  from = aws_security_group_rule.nodes_ingress_from_cluster
+  to   = aws_security_group_rule.rules["nodes_from_cluster"]
+}
+
+moved {
+  from = aws_security_group_rule.nodes_ingress_from_cluster_https
+  to   = aws_security_group_rule.rules["nodes_from_cluster_https"]
+}
+
+moved {
+  from = aws_security_group_rule.nodes_ingress_from_alb
+  to   = aws_security_group_rule.rules["nodes_from_alb"]
+}
+
+moved {
+  from = aws_security_group_rule.nodes_egress
+  to   = aws_security_group_rule.rules["nodes_egress_all"]
+}
+
+moved {
+  from = aws_security_group_rule.rds_ingress_from_nodes
+  to   = aws_security_group_rule.rules["rds_from_nodes"]
 }

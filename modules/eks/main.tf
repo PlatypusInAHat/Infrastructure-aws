@@ -109,35 +109,37 @@ resource "aws_iam_role_policy_attachment" "node_group" {
   role       = aws_iam_role.node_group.name
 }
 
-# ---------- Managed Node Group ----------
+# ---------- Managed Node Groups ----------
 
 resource "aws_eks_node_group" "this" {
+  for_each = var.node_groups
+
   cluster_name    = aws_eks_cluster.this.name
-  node_group_name = "${var.project_name}-${var.environment}-nodes"
+  node_group_name = "${var.project_name}-${var.environment}-${each.key}-nodes"
   node_role_arn   = aws_iam_role.node_group.arn
   subnet_ids      = var.private_subnet_ids
 
-  instance_types = var.node_instance_types
-  capacity_type  = var.node_capacity_type
-  disk_size      = var.node_disk_size
+  instance_types = each.value.instance_types
+  capacity_type  = each.value.capacity_type
+  disk_size      = each.value.disk_size
 
   scaling_config {
-    desired_size = var.node_desired_size
-    min_size     = var.node_min_size
-    max_size     = var.node_max_size
+    desired_size = each.value.desired_size
+    min_size     = each.value.min_size
+    max_size     = each.value.max_size
   }
 
   update_config {
     max_unavailable = 1
   }
 
-  labels = {
+  labels = merge({
     Environment = var.environment
-    NodeGroup   = "managed"
-  }
+    NodeGroup   = each.key
+  }, each.value.labels)
 
   tags = merge(var.common_tags, {
-    Name = "${var.project_name}-${var.environment}-eks-node"
+    Name = "${var.project_name}-${var.environment}-eks-${each.key}-node"
   })
 
   depends_on = [
@@ -215,4 +217,9 @@ moved {
 moved {
   from = aws_iam_role_policy_attachment.node_ssm_managed
   to   = aws_iam_role_policy_attachment.node_group["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]
+}
+
+moved {
+  from = aws_eks_node_group.this
+  to   = aws_eks_node_group.this["initial"]
 }

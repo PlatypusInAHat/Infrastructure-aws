@@ -22,6 +22,17 @@ rds_backup_retention_period = 1
 rds_backup_window           = "03:00-04:00"
 rds_maintenance_window      = "Mon:04:00-Mon:05:00"
 rds_storage_type            = "gp3"
+
+rds_parameters = [
+  {
+    name  = "log_connections"
+    value = "1"
+  },
+  {
+    name  = "log_disconnections"
+    value = "1"
+  }
+]
 rds_deletion_protection     = false
 rds_skip_final_snapshot     = true
 rds_performance_insights    = false

@@ -56,6 +56,7 @@ module "rds" {
   deletion_protection          = var.rds_deletion_protection
   skip_final_snapshot          = var.rds_skip_final_snapshot
   performance_insights_enabled = var.rds_performance_insights
+  db_parameters                = var.rds_parameters
   common_tags                  = local.common_tags
 }
 # ---------- Secrets Manager (for GitHub Token) ----------
