@@ -10,7 +10,7 @@ environment  = "dev"
 state_bucket = "lab-aws-terraform-state-361183471902"
 
 # RDS - No HA for dev
-rds_engine_version          = "15.4"
+rds_engine_version          = "15.17"
 rds_instance_class          = "db.t3.micro"
 rds_allocated_storage       = 20
 rds_max_allocated_storage   = 50
