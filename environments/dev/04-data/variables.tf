@@ -44,6 +44,11 @@ variable "rds_max_allocated_storage" {
   type        = number
 }
 
+variable "rds_storage_type" {
+  description = "RDS storage type (gp2, gp3, io1)"
+  type        = string
+}
+
 variable "database_name" {
   description = "Database name"
   type        = string
@@ -82,4 +87,14 @@ variable "rds_skip_final_snapshot" {
 variable "rds_performance_insights" {
   description = "Enable RDS Performance Insights"
   type        = bool
+}
+
+variable "rds_backup_window" {
+  description = "Preferred backup window (UTC)"
+  type        = string
+}
+
+variable "rds_maintenance_window" {
+  description = "Preferred maintenance window (UTC)"
+  type        = string
 }

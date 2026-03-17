@@ -50,6 +50,9 @@ module "rds" {
   rds_security_group_id        = data.terraform_remote_state.security.outputs.rds_security_group_id
   multi_az                     = var.rds_multi_az
   backup_retention_period      = var.rds_backup_retention_period
+  backup_window                = var.rds_backup_window
+  maintenance_window           = var.rds_maintenance_window
+  storage_type                 = var.rds_storage_type
   deletion_protection          = var.rds_deletion_protection
   skip_final_snapshot          = var.rds_skip_final_snapshot
   performance_insights_enabled = var.rds_performance_insights

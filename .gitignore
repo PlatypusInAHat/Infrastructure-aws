@@ -17,6 +17,7 @@ terraform.rc
 
 # tfvars often contains secrets; keep *.example versions committed
 *.tfvars
+!terraform.tfvars
 *.tfvars.json
 
 # CLI plan files
