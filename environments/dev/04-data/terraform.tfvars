@@ -33,6 +33,6 @@ rds_parameters = [
     value = "1"
   }
 ]
-rds_deletion_protection     = false
-rds_skip_final_snapshot     = true
-rds_performance_insights    = false
+rds_deletion_protection  = false
+rds_skip_final_snapshot  = true
+rds_performance_insights = false

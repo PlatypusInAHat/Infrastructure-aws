@@ -10,17 +10,17 @@ output "vpc_cidr" {
 
 output "public_subnet_ids" {
   description = "IDs of the public subnets"
-  value       = aws_subnet.public[*].id
+  value       = [for s in aws_subnet.public : s.id]
 }
 
 output "private_subnet_ids" {
   description = "IDs of the private subnets"
-  value       = aws_subnet.private[*].id
+  value       = [for s in aws_subnet.private : s.id]
 }
 
 output "database_subnet_ids" {
   description = "IDs of the database subnets"
-  value       = aws_subnet.database[*].id
+  value       = [for s in aws_subnet.database : s.id]
 }
 
 output "db_subnet_group_name" {
@@ -30,7 +30,7 @@ output "db_subnet_group_name" {
 
 output "nat_gateway_ips" {
   description = "Public IPs of the NAT Gateways"
-  value       = aws_eip.nat[*].public_ip
+  value       = [for e in aws_eip.nat : e.public_ip]
 }
 
 output "availability_zones" {

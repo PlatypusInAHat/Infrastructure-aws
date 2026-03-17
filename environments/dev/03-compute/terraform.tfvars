@@ -25,6 +25,6 @@ eks_node_groups = {
 }
 
 # Application
-eks_enabled_log_types      = ["api", "audit", "authenticator"]
-app_namespace              = "sample-app"
-app_service_account_name   = "app-sa"
+eks_enabled_log_types    = ["api", "audit", "authenticator"]
+app_namespace            = "sample-app"
+app_service_account_name = "app-sa"
