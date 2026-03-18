@@ -27,7 +27,7 @@ output "rds_security_group_id" {
 
 output "github_actions_oidc_provider_arn" {
   description = "ARN of the GitHub Actions OIDC Identity Provider"
-  value       = aws_iam_openid_connect_provider.github_actions.arn
+  value       = data.aws_iam_openid_connect_provider.github_actions.arn
 }
 
 output "github_actions_role_arn" {
