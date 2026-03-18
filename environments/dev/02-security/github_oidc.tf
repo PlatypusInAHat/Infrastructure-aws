@@ -6,10 +6,7 @@
 # These resources were initially created manually in AWS Console to bootstrap CI/CD
 # Terraform will automatically import them into its state using these blocks.
 
-import {
-  to = aws_iam_openid_connect_provider.github_actions
-  id = "arn:aws:iam::361183471902:oidc-provider/token.actions.githubusercontent.com"
-}
+
 
 import {
   to = aws_iam_role.github_actions
@@ -23,21 +20,8 @@ import {
 
 # ---------- GitHub OIDC Identity Provider ----------
 
-data "tls_certificate" "github" {
+data "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
-}
-
-resource "aws_iam_openid_connect_provider" "github_actions" {
-  url = "https://token.actions.githubusercontent.com"
-
-  client_id_list = ["sts.amazonaws.com"]
-
-  # Automatically retrieve thumbprints from GitHub's OIDC endpoint
-  thumbprint_list = data.tls_certificate.github.certificates[*].sha1_fingerprint
-
-  tags = merge(local.common_tags, {
-    Name = "github-actions-oidc-provider"
-  })
 }
 
 # ---------- IAM Role for GitHub Actions ----------
@@ -52,7 +36,7 @@ resource "aws_iam_role" "github_actions" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.github_actions.arn
+          Federated = data.aws_iam_openid_connect_provider.github_actions.arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
