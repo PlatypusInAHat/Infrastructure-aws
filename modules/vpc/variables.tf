@@ -18,8 +18,8 @@ variable "az_count" {
   type        = number
 
   validation {
-    condition     = var.az_count >= 2 && var.az_count <= 3
-    error_message = "AZ count must be between 2 and 3."
+    condition     = var.az_count >= 1 && var.az_count <= 3
+    error_message = "AZ count must be between 1 and 3."
   }
 }
 
