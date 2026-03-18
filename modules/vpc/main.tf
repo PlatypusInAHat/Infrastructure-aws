@@ -19,8 +19,8 @@ locals {
   az_map = { for i, az in local.azs : i => az }
 
   public_subnets   = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i) }
-  private_subnets  = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i + var.az_count) }
-  database_subnets = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i + var.az_count * 2) }
+  private_subnets  = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i + 3) }
+  database_subnets = { for i, az in local.azs : az => cidrsubnet(var.vpc_cidr, 4, i + 6) }
 }
 
 # ---------- VPC ----------
