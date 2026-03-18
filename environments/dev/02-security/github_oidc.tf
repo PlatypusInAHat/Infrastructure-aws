@@ -2,14 +2,24 @@
 # GitHub Actions OIDC Identity Provider & IAM Role
 # Enables GitHub Actions to assume an IAM role via OIDC (no long-lived keys)
 #
-# Import commands (resources were initially created manually in AWS Console):
-#   terraform import aws_iam_openid_connect_provider.github_actions \
-#     arn:aws:iam::361183471902:oidc-provider/token.actions.githubusercontent.com
-#   terraform import aws_iam_role.github_actions \
-#     lab-aws-dev-github-actions-role
-#   terraform import aws_iam_role_policy_attachment.github_actions_admin \
-#     "lab-aws-dev-github-actions-role/arn:aws:iam::aws:policy/AdministratorAccess"
-###############################################################################
+# ---------- Config-Driven Imports ----------
+# These resources were initially created manually in AWS Console to bootstrap CI/CD
+# Terraform will automatically import them into its state using these blocks.
+
+import {
+  to = aws_iam_openid_connect_provider.github_actions
+  id = "arn:aws:iam::361183471902:oidc-provider/token.actions.githubusercontent.com"
+}
+
+import {
+  to = aws_iam_role.github_actions
+  id = "lab-aws-dev-github-actions-role"
+}
+
+import {
+  to = aws_iam_role_policy_attachment.github_actions_admin
+  id = "lab-aws-dev-github-actions-role/arn:aws:iam::aws:policy/AdministratorAccess"
+}
 
 # ---------- GitHub OIDC Identity Provider ----------
 
