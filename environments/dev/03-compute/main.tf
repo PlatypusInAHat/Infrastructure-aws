@@ -43,6 +43,7 @@ module "eks" {
   environment               = var.environment
   cluster_name              = local.cluster_name
   cluster_version           = var.eks_cluster_version
+  admin_user_arns           = ["arn:aws:iam::361183471902:user/lab"]
   private_subnet_ids        = data.terraform_remote_state.network.outputs.private_subnet_ids
   public_subnet_ids         = data.terraform_remote_state.network.outputs.public_subnet_ids
   cluster_security_group_id = data.terraform_remote_state.security.outputs.eks_cluster_security_group_id

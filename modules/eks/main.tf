@@ -49,6 +49,10 @@ resource "aws_eks_cluster" "this" {
 
   enabled_cluster_log_types = var.enabled_log_types
 
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
+  }
+
   tags = merge(var.common_tags, {
     Name = var.cluster_name
   })
@@ -222,4 +226,26 @@ moved {
 moved {
   from = aws_eks_node_group.this
   to   = aws_eks_node_group.this["initial"]
+}
+
+# ---------- Cluster Access Entries ----------
+
+resource "aws_eks_access_entry" "admin" {
+  for_each      = toset(var.admin_user_arns)
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = each.value
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "admin" {
+  for_each      = toset(var.admin_user_arns)
+  cluster_name  = aws_eks_cluster.this.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  principal_arn = each.value
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.admin]
 }

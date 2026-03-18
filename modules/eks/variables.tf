@@ -43,6 +43,12 @@ variable "enabled_log_types" {
   type        = list(string)
 }
 
+variable "admin_user_arns" {
+  description = "List of IAM ARNs to grant system:masters cluster admin access"
+  type        = list(string)
+  default     = []
+}
+
 # ---------- Node Group Variables ----------
 
 variable "node_groups" {
