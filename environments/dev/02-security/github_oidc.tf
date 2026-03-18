@@ -8,15 +8,7 @@
 
 
 
-import {
-  to = aws_iam_role.github_actions
-  id = "lab-aws-dev-github-actions-role"
-}
-
-import {
-  to = aws_iam_role_policy_attachment.github_actions_admin
-  id = "lab-aws-dev-github-actions-role/arn:aws:iam::aws:policy/AdministratorAccess"
-}
+# The OIDC provider exists globally, but the IAM role will be created by this Terraform layer.
 
 # ---------- GitHub OIDC Identity Provider ----------
 
