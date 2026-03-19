@@ -185,7 +185,16 @@ locals {
       to          = var.db_port
       proto       = "tcp"
       source_sg   = aws_security_group.eks_nodes.id
-      description = "Allow database access from EKS nodes only"
+      description = "Allow database access from EKS nodes"
+    }
+    rds_from_cluster = {
+      sg_id       = aws_security_group.rds.id
+      type        = "ingress"
+      from        = var.db_port
+      to          = var.db_port
+      proto       = "tcp"
+      source_sg   = aws_security_group.eks_cluster.id
+      description = "Allow database access from EKS cluster managed SG"
     }
   }
 }
