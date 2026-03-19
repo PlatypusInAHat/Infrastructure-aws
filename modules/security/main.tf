@@ -70,7 +70,21 @@ resource "aws_security_group" "rds" {
 
 # ---------- Security Group Rules Mapping ----------
 
+data "aws_security_groups" "eks_managed" {
+  filter {
+    name   = "tag:kubernetes.io/cluster/${var.cluster_name}"
+    values = ["owned"]
+  }
+  filter {
+    name   = "vpc-id"
+    values = [var.vpc_id]
+  }
+}
+
 locals {
+  # Use the first managed SG found (EKS always creates one)
+  eks_managed_sg_id = length(data.aws_security_groups.eks_managed.ids) > 0 ? data.aws_security_groups.eks_managed.ids[0] : null
+
   rules = {
     # ALB Rules
     alb_http = {
@@ -195,6 +209,15 @@ locals {
       proto       = "tcp"
       source_sg   = aws_security_group.eks_cluster.id
       description = "Allow database access from EKS cluster managed SG"
+    }
+    rds_from_cluster_managed = {
+      sg_id       = aws_security_group.rds.id
+      type        = "ingress"
+      from        = var.db_port
+      to          = var.db_port
+      proto       = "tcp"
+      source_sg   = local.eks_managed_sg_id
+      description = "Allow database access from EKS-managed cluster SG"
     }
   }
 }
