@@ -85,7 +85,7 @@ locals {
   # Use the first managed SG found (EKS always creates one)
   eks_managed_sg_id = length(data.aws_security_groups.eks_managed.ids) > 0 ? data.aws_security_groups.eks_managed.ids[0] : null
 
-  rules = {
+  base_rules = {
     # ALB Rules
     alb_http = {
       sg_id       = aws_security_group.alb.id
@@ -210,6 +210,9 @@ locals {
       source_sg   = aws_security_group.eks_cluster.id
       description = "Allow database access from EKS cluster managed SG"
     }
+  }
+
+  rds_managed_rule = local.eks_managed_sg_id != null ? {
     rds_from_cluster_managed = {
       sg_id       = aws_security_group.rds.id
       type        = "ingress"
@@ -219,7 +222,9 @@ locals {
       source_sg   = local.eks_managed_sg_id
       description = "Allow database access from EKS-managed cluster SG"
     }
-  }
+  } : {}
+
+  rules = merge(local.base_rules, local.rds_managed_rule)
 }
 
 resource "aws_security_group_rule" "rules" {
