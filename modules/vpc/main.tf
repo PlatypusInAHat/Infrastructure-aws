@@ -183,13 +183,19 @@ resource "aws_route_table_association" "database" {
 # ---------- DB Subnet Group ----------
 
 resource "aws_db_subnet_group" "this" {
-  name        = "${var.project_name}-${var.environment}-db-subnet-group"
+  name_prefix = "${var.project_name}-${var.environment}-"
   description = "Database subnet group for ${var.project_name} ${var.environment}"
   subnet_ids  = [for s in aws_subnet.database : s.id]
 
   tags = merge(var.common_tags, {
     Name = "${var.project_name}-${var.environment}-db-subnet-group"
   })
+
+  lifecycle {
+    replace_triggered_by = [
+      aws_vpc.this.id
+    ]
+  }
 }
 
 # ---------- Moved blocks for state migration ----------
